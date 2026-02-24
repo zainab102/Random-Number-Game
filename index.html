@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Random Number Game</title>
+  <style>
+    :root {
+      --bg-start: #f4f1e8;
+      --bg-end: #d8e6ef;
+      --surface: #ffffff;
+      --text: #1d2a33;
+      --muted: #516371;
+      --accent: #0f766e;
+      --accent-2: #134e4a;
+      --danger: #c2410c;
+      --shadow: 0 18px 45px rgba(17, 37, 51, 0.18);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Trebuchet MS", "Gill Sans", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 15% 20%, rgba(255, 255, 255, 0.68), transparent 42%),
+        radial-gradient(circle at 85% 80%, rgba(255, 255, 255, 0.52), transparent 40%),
+        linear-gradient(135deg, var(--bg-start), var(--bg-end));
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(560px, 100%);
+      background: var(--surface);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      padding: 26px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+      letter-spacing: 0.2px;
+    }
+
+    p {
+      margin: 0 0 14px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    select,
+    input,
+    button {
+      border: 1px solid #d0d9de;
+      border-radius: 10px;
+      padding: 12px 14px;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    input {
+      flex: 1;
+      min-width: 170px;
+    }
+
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.12s ease, background-color 0.12s ease;
+    }
+
+    button:hover {
+      background: var(--accent-2);
+      transform: translateY(-1px);
+    }
+
+    .muted-btn {
+      background: #334155;
+    }
+
+    .message {
+      font-weight: 700;
+      margin: 12px 0;
+      min-height: 24px;
+    }
+
+    .danger {
+      color: var(--danger);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(120px, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .stat {
+      padding: 10px 12px;
+      background: #f8fafc;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+      font-size: 0.95rem;
+    }
+
+    @media (max-width: 560px) {
+      .card {
+        padding: 20px;
+      }
+      h1 {
+        font-size: 1.7rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Random Number Game</h1>
+    <p id="modeInfo">Pick a difficulty and guess the secret number.</p>
+
+    <div class="controls">
+      <select id="difficulty">
+        <option value="easy">Easy (1-20, 7 attempts)</option>
+        <option value="medium">Medium (1-50, 6 attempts)</option>
+        <option value="hard">Hard (1-100, 5 attempts)</option>
+      </select>
+      <div class="row">
+        <input id="guessInput" type="number" placeholder="Enter your guess">
+        <button id="guessBtn" type="button">Guess</button>
+      </div>
+      <div class="row">
+        <button id="newRoundBtn" type="button" class="muted-btn">New Round</button>
+      </div>
+    </div>
+
+    <div id="message" class="message"></div>
+
+    <section class="stats">
+      <div class="stat">Games: <strong id="gamesPlayed">0</strong></div>
+      <div class="stat">Wins: <strong id="wins">0</strong></div>
+      <div class="stat">Losses: <strong id="losses">0</strong></div>
+      <div class="stat">Best Win: <strong id="bestWin">-</strong></div>
+      <div class="stat">Attempts Left: <strong id="attemptsLeft">-</strong></div>
+      <div class="stat">Range: <strong id="rangeLabel">-</strong></div>
+    </section>
+  </main>
+
+  <script>
+    const config = {
+      easy: { max: 20, attempts: 7 },
+      medium: { max: 50, attempts: 6 },
+      hard: { max: 100, attempts: 5 }
+    };
+
+    let gamesPlayed = 0;
+    let wins = 0;
+    let bestWin = null;
+    let target = 0;
+    let attemptsLeft = 0;
+    let currentMode = "easy";
+    let roundEnded = false;
+
+    const modeInfo = document.getElementById("modeInfo");
+    const difficulty = document.getElementById("difficulty");
+    const guessInput = document.getElementById("guessInput");
+    const guessBtn = document.getElementById("guessBtn");
+    const newRoundBtn = document.getElementById("newRoundBtn");
+    const message = document.getElementById("message");
+    const gamesPlayedEl = document.getElementById("gamesPlayed");
+    const winsEl = document.getElementById("wins");
+    const lossesEl = document.getElementById("losses");
+    const bestWinEl = document.getElementById("bestWin");
+    const attemptsLeftEl = document.getElementById("attemptsLeft");
+    const rangeLabelEl = document.getElementById("rangeLabel");
+
+    function randomInt(max) {
+      return Math.floor(Math.random() * max) + 1;
+    }
+
+    function updateStats() {
+      gamesPlayedEl.textContent = String(gamesPlayed);
+      winsEl.textContent = String(wins);
+      lossesEl.textContent = String(gamesPlayed - wins);
+      bestWinEl.textContent = bestWin === null ? "-" : String(bestWin);
+      attemptsLeftEl.textContent = String(attemptsLeft);
+      rangeLabelEl.textContent = `1-${config[currentMode].max}`;
+    }
+
+    function setMessage(text, isDanger = false) {
+      message.textContent = text;
+      message.className = isDanger ? "message danger" : "message";
+    }
+
+    function startRound() {
+      currentMode = difficulty.value;
+      const mode = config[currentMode];
+      target = randomInt(mode.max);
+      attemptsLeft = mode.attempts;
+      roundEnded = false;
+      modeInfo.textContent = `${currentMode[0].toUpperCase()}${currentMode.slice(1)} mode: guess between 1 and ${mode.max}`;
+      setMessage("New round started. Make your guess.");
+      guessInput.value = "";
+      guessInput.min = "1";
+      guessInput.max = String(mode.max);
+      updateStats();
+      guessInput.focus();
+    }
+
+    function finishRound(win, attemptsUsed) {
+      gamesPlayed += 1;
+      roundEnded = true;
+
+      if (win) {
+        wins += 1;
+        if (bestWin === null || attemptsUsed < bestWin) {
+          bestWin = attemptsUsed;
+        }
+      }
+      updateStats();
+    }
+
+    function handleGuess() {
+      if (roundEnded) {
+        setMessage("Round ended. Start a new round.", true);
+        return;
+      }
+
+      const mode = config[currentMode];
+      const value = Number(guessInput.value);
+
+      if (!Number.isInteger(value) || value < 1 || value > mode.max) {
+        setMessage(`Enter a whole number between 1 and ${mode.max}.`, true);
+        return;
+      }
+
+      attemptsLeft -= 1;
+      const attemptsUsed = mode.attempts - attemptsLeft;
+
+      if (value === target) {
+        setMessage(`Correct. You guessed it in ${attemptsUsed} attempts.`);
+        finishRound(true, attemptsUsed);
+        return;
+      }
+
+      if (attemptsLeft === 0) {
+        setMessage(`No attempts left. The number was ${target}.`, true);
+        finishRound(false, attemptsUsed);
+        return;
+      }
+
+      setMessage(value < target ? "Too low. Try again." : "Too high. Try again.");
+      updateStats();
+      guessInput.select();
+    }
+
+    guessBtn.addEventListener("click", handleGuess);
+    newRoundBtn.addEventListener("click", startRound);
+    difficulty.addEventListener("change", startRound);
+    guessInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        handleGuess();
+      }
+    });
+
+    startRound();
+  </script>
+</body>
+</html>
